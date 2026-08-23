@@ -1,7 +1,7 @@
-Const express = require('express');
+const express = require('express');
 const mongoose = require('mongoose');
 const axios = require('axios');
-const Shop = require('./models/Shop');
+const shop = require('./models/shop');
 
 const app = express();
 app.use(express.json());
@@ -16,12 +16,12 @@ app.post('/api/register-shop', async (req, res) => {
     try {
         const { shopName, phoneNumberId, accessToken } = req.body;
         
-        const existingShop = await Shop.findOne({ phoneNumberId });
+        const existingShop = await shop.findOne({ phoneNumberId });
         if (existingShop) {
             return res.status(400).json({ error: 'هذا المحل أو رقم الواتساب مسجل مسبقاً!' });
         }
 
-        const newShop = new Shop({ shopName, phoneNumberId, accessToken });
+        const newShop = new shop({ shopName, phoneNumberId, accessToken });
         await newShop.save();
 
         res.status(201).json({ message: 'تم تسجيل المحل بنجاح وأصبح له بوت مستقل!', shop: newShop });
@@ -55,24 +55,24 @@ app.post('/webhook', async (req, res) => {
             const senderPhone = message.from;                    
             const messageText = message.text?.body;              
 
-            const shop = await Shop.findOne({ phoneNumberId });
+            const currentShop = await shop.findOne({ phoneNumberId });
 
-            if (!shop) {
+            if (!currentShop) {
                 console.log(`تم استقبال رسالة لرقم غير مسجل: ${phoneNumberId}`);
                 return res.sendStatus(200);
             }
 
-            console.log(`رسالة موجهة إلى محل (${shop.shopName}) من الزبون: ${senderPhone}`);
+            console.log(`رسالة موجهة إلى محل (${currentShop.shopName}) من الزبون: ${senderPhone}`);
 
             await axios.post(
                 `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`,
                 {
                     messaging_product: "whatsapp",
                     to: senderPhone,
-                    text: { body: `أهلاً بك في ${shop.shopName}! تم استلام رسالتك بنجاح.` }
+                    text: { body: `أهلاً بك في ${currentShop.shopName}! تم استلام رسالتك بنجاح.` }
                 },
                 {
-                    headers: { Authorization: `Bearer ${shop.accessToken}` }
+                    headers: { Authorization: `Bearer ${currentShop.accessToken}` }
                 }
             );
         }
